@@ -30,44 +30,6 @@ type ShadowServiceManager struct {
 	table  *PortStateTable
 }
 
-// // deleteShadowService deletes the shadow service associated with the given user service.
-// func (s *ShadowServiceManager) deleteShadowService(ctx context.Context, namespace, name, shadowSvcName string) error {
-// 	shadowSvc, err := s.serviceLister.Services(s.namespace).Get(shadowSvcName)
-// 	if kerrors.IsNotFound(err) {
-// 		return nil
-// 	}
-
-// 	if err != nil {
-// 		return err
-// 	}
-
-// 	s.logger.Info(fmt.Sprintf("Deleting shadow service %q...", shadowSvcName))
-
-// 	trafficType, err := annotations.GetTrafficType(shadowSvc.Annotations)
-// 	if errors.Is(err, annotations.ErrNotFound) {
-// 		s.logger.Error(err, fmt.Sprintf("Unable to find traffic-type of the shadow service for service %q in namespace %q", name, namespace))
-// 		return nil
-// 	}
-
-// 	if err != nil {
-// 		s.logger.Error(err, fmt.Sprintf("Unable to delete shadow service for service %q in namespace %q: %v", name, namespace, err))
-// 		return nil
-// 	}
-
-// 	for _, sp := range shadowSvc.Spec.Ports {
-// 		if err = s.unmapPort(namespace, name, trafficType, sp.Port); err != nil {
-// 			s.logger.Error(err, fmt.Sprintf("Unable to unmap port %d of service %q in namespace %q: %v", sp.Port, name, namespace, err))
-// 		}
-// 	}
-
-// 	err = s.kubeClient.CoreV1().Services(s.namespace).Delete(ctx, shadowSvcName, metav1.DeleteOptions{})
-// 	if kerrors.IsNotFound(err) {
-// 		return nil
-// 	}
-
-// 	return err
-// }
-
 // getServicePorts returns the ports of the given user service, mapped with port opened on the proxy.
 func (s *ShadowServiceManager) getServicePorts(svc *corev1.Service, trafficType string) []corev1.ServicePort {
 	var ports []corev1.ServicePort
@@ -80,7 +42,7 @@ func (s *ShadowServiceManager) getServicePorts(svc *corev1.Service, trafficType 
 
 		targetPort, err := s.mapPort(svc.Name, svc.Namespace, trafficType, sp.Port)
 		if err != nil {
-			s.logger.Error(err, fmt.Sprintf("Unable to map port %d for %q service %q in namespace %q: %v", sp.Port, trafficType, svc.Name, svc.Namespace, err))
+			s.logger.Error(err, "Unable to map port", "Port", sp.Port)
 			continue
 		}
 
@@ -99,12 +61,12 @@ func (s *ShadowServiceManager) getServicePorts(svc *corev1.Service, trafficType 
 func (s *ShadowServiceManager) cleanupShadowServicePorts(svc, shadowSvc *corev1.Service, trafficType string) {
 	oldTrafficType, err := annotations.GetTrafficType(shadowSvc.Annotations)
 	if errors.Is(err, annotations.ErrNotFound) {
-		s.logger.Error(err, fmt.Sprintf("Unable find traffic-type for shadow service %q", shadowSvc.Name))
+		s.logger.Error(err, "Unable find traffic-type")
 		return
 	}
 
 	if err != nil {
-		s.logger.Error(err, fmt.Sprintf("Unable to clean up ports for shadow service %q: %v", shadowSvc.Name, err))
+		s.logger.Error(err, "Unable to clean up ports ")
 		return
 	}
 
@@ -121,7 +83,7 @@ func (s *ShadowServiceManager) cleanupShadowServicePorts(svc, shadowSvc *corev1.
 
 	for _, sp := range oldPorts {
 		if err := s.unmapPort(svc.Namespace, svc.Name, oldTrafficType, sp.Port); err != nil {
-			s.logger.Error(err, fmt.Sprintf("Unable to unmap port %d of service %q in namespace %q: %v", sp.Port, svc.Name, svc.Namespace))
+			s.logger.Error(err, "Unable to unmap port", "Port", sp.Port)
 		}
 	}
 }
@@ -142,9 +104,7 @@ func (s *ShadowServiceManager) setPort(name, namespace, trafficType string, port
 	if err := stateTable.Set(namespace, name, port, mappedPort); err != nil {
 		return err
 	}
-
-	s.logger.Info(fmt.Sprintf("Port %d of service %q in namespace %q has been loaded and is mapped to port %d", port, name, namespace, mappedPort))
-
+	s.logger.Info("Loaded port", "Port", port, "MappedPort", mappedPort)
 	return nil
 }
 
@@ -165,9 +125,7 @@ func (s *ShadowServiceManager) mapPort(name, namespace, trafficType string, port
 	if err != nil {
 		return 0, err
 	}
-
-	s.logger.Info(fmt.Sprintf("Port %d of service %q in namespace %q has been mapped to port %d", port, name, namespace, mappedPort))
-
+	s.logger.Info("Mapped port", "Port", port, "MappedPort", mappedPort)
 	return mappedPort, nil
 }
 
@@ -186,7 +144,7 @@ func (s *ShadowServiceManager) unmapPort(namespace, name, trafficType string, po
 	}
 
 	if mappedPort, ok := stateTable.Remove(namespace, name, port); ok {
-		s.logger.Info(fmt.Sprintf("Port %d of service %q in namespace %q has been unmapped to port %d", port, name, namespace, mappedPort))
+		s.logger.Info("Unmapped port", "Port", port, "MappedPort", mappedPort)
 	}
 
 	return nil

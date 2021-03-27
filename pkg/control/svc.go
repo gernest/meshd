@@ -11,10 +11,11 @@ import (
 	"github.com/gernest/meshd/pkg/shadow"
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 type Config struct {
@@ -66,21 +67,48 @@ func (r *Shadow) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, 
 	}
 	log := r.Log.WithValues("Service", req.Name, "Namespace", req.Namespace)
 	log.Info("Syncing service")
-	trafficType, _ := annotations.GetTrafficType(svc.Annotations)
-	shadowSvcName, _ := shadow.Name(req.Namespace, req.Name)
-	shadowSvc := &corev1.Service{}
-	shadowSvc.Name = shadowSvcName
-	shadowSvc.Namespace = svc.Namespace
-	if err := r.Get(ctx, req.NamespacedName, svc); err != nil {
-		if !errors.IsNotFound(err) {
-			return r.create(ctx, svc, shadowSvc, trafficType)
-		}
-		return ctrl.Result{}, client.IgnoreNotFound(err)
+	trafficType, err := annotations.GetTrafficType(svc.Annotations)
+	if err != nil {
+		return ctrl.Result{}, err
 	}
-	return r.update(ctx, svc, shadowSvc, trafficType)
+	shadow := r.isShadow(svc)
+	_, err = controllerutil.CreateOrUpdate(ctx, r.Client, svc, func() error {
+		if svc.DeletionTimestamp.IsZero() {
+			if shadow {
+				return r.deleteShadow(svc, trafficType)
+			}
+			return r.delete(ctx, svc)
+		}
+		if shadow {
+			controllerutil.AddFinalizer(svc, k8s.FinalService)
+			return nil
+		}
+		if r.isCreated(svc) {
+			return r.create(ctx, svc, trafficType)
+		}
+		return r.update(ctx, svc, trafficType)
+	})
+	return ctrl.Result{}, err
 }
 
-func (r *Shadow) create(ctx context.Context, svc, shadowSvc *corev1.Service, trafficType string) (ctrl.Result, error) {
+func (r *Shadow) isCreated(svc *corev1.Service) bool {
+	for _, x := range svc.Finalizers {
+		if x == k8s.FinalService {
+			return true
+		}
+	}
+	return false
+}
+
+func (r *Shadow) isShadow(svc *corev1.Service) bool {
+	return svc.Labels[k8s.LabelComponent] == k8s.ComponentShadowService
+}
+
+func (r *Shadow) create(ctx context.Context, svc *corev1.Service, trafficType string) error {
+	name, _ := shadow.Name(svc.Namespace, svc.Name)
+	shadowSvc := &corev1.Service{}
+	shadowSvc.Name = name
+	shadowSvc.Namespace = svc.Namespace
 	ports := r.s.getServicePorts(svc, trafficType)
 	if len(ports) == 0 {
 		ports = []corev1.ServicePort{buildUnresolvablePort()}
@@ -95,10 +123,21 @@ func (r *Shadow) create(ctx context.Context, svc, shadowSvc *corev1.Service, tra
 		Ports:    ports,
 	}
 	annotations.SetTrafficType(trafficType, shadowSvc.Annotations)
-	return ctrl.Result{}, r.Create(ctx, shadowSvc)
+	if err := r.Create(ctx, shadowSvc); err != nil {
+		return err
+	}
+	controllerutil.AddFinalizer(svc, k8s.FinalService)
+	return nil
 }
 
-func (r *Shadow) update(ctx context.Context, svc, shadowSvc *corev1.Service, trafficType string) (ctrl.Result, error) {
+func (r *Shadow) update(ctx context.Context, svc *corev1.Service, trafficType string) error {
+	name, _ := shadow.Name(svc.Namespace, svc.Name)
+	shadowSvc := &corev1.Service{}
+	shadowSvc.Name = name
+	shadowSvc.Namespace = svc.Namespace
+	if err := r.Get(ctx, types.NamespacedName{}, shadowSvc); err != nil {
+		return err
+	}
 	r.s.cleanupShadowServicePorts(svc, shadowSvc, trafficType)
 	ports := r.s.getServicePorts(svc, trafficType)
 	if len(ports) == 0 {
@@ -107,7 +146,39 @@ func (r *Shadow) update(ctx context.Context, svc, shadowSvc *corev1.Service, tra
 	shadowSvc = shadowSvc.DeepCopy()
 	shadowSvc.Spec.Ports = ports
 	annotations.SetTrafficType(trafficType, shadowSvc.Annotations)
-	return ctrl.Result{}, r.Update(ctx, shadowSvc)
+	if err := r.Update(ctx, shadowSvc); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (r *Shadow) delete(ctx context.Context, svc *corev1.Service) error {
+	r.Log.Info("Deleting service service")
+	controllerutil.RemoveFinalizer(svc, k8s.FinalService)
+	shadowSvcName, _ := shadow.Name(svc.Namespace, svc.Name)
+	var shadow corev1.Service
+	if err := r.Get(ctx, types.NamespacedName{Namespace: svc.Namespace, Name: shadowSvcName}, &shadow); err != nil {
+		return client.IgnoreNotFound(err)
+	}
+	err := r.Delete(ctx, &shadow)
+	if err != nil {
+		return err
+	}
+	r.Log.Info("Successfully deleted service")
+	return nil
+}
+
+func (r *Shadow) deleteShadow(svc *corev1.Service, trafficType string) error {
+	r.Log.Info("Deleting shadow service", "ServiceName", svc.Name)
+	for _, sp := range svc.Spec.Ports {
+		if err := r.s.unmapPort(svc.Namespace, svc.Name, trafficType, sp.Port); err != nil {
+			r.Log.Error(err, "UUnable to unmap port",
+				"ServiceName", svc.Name, "ServicePort", sp.Port, "Namespace", svc.Namespace)
+			return err
+		}
+	}
+	controllerutil.RemoveFinalizer(svc, k8s.FinalService)
+	return nil
 }
 
 // Init initializes the shadowservice controller.
