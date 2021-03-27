@@ -10,7 +10,10 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
+// deepcopy-gen -v 11  -h hack/boilerpllate.go.txt -O zz_generated_deepcopy  -i ./pkg/topology/
+
 // Key references a resource.
+// +k8s:deepcopy-gen=true
 type Key struct {
 	Name      string `json:"name"`
 	Namespace string `json:"namespace"`
@@ -53,6 +56,7 @@ func (k *Key) UnmarshalJSON(data []byte) error {
 }
 
 // ServiceTrafficTargetKey references a TrafficTarget applied on a Service.
+// +k8s:deepcopy-gen=true
 type ServiceTrafficTargetKey struct {
 	Service       Key
 	TrafficTarget Key
@@ -111,6 +115,7 @@ func (k *ServiceTrafficTargetKey) UnmarshalJSON(data []byte) error {
 
 // Topology holds the graph and represents the different paths a request can follow. Each Pods and services are nodes
 // of the graph.
+//+k8s:deepcopy-gen=true
 type Topology struct {
 	Services              map[Key]*Service                                  `json:"services"`
 	Pods                  map[Key]*Pod                                      `json:"pods"`
@@ -129,6 +134,7 @@ func NewTopology() *Topology {
 }
 
 // Service is a node of the graph representing a kubernetes service.
+//+k8s:deepcopy-gen=true
 type Service struct {
 	Name        string               `json:"name"`
 	Namespace   string               `json:"namespace"`
@@ -157,6 +163,7 @@ func (s *Service) AddError(err error) {
 // account. This service account can be set on many pods, each of them, potentially accessible through different services.
 // A ServiceTrafficTarget is a TrafficTarget for a Service which exposes a Pod which has the TrafficTarget Destination
 // service-account.
+//+k8s:deepcopy-gen=true
 type ServiceTrafficTarget struct {
 	Service   Key    `json:"service"`
 	Name      string `json:"name"`
@@ -177,6 +184,7 @@ func (tt *ServiceTrafficTarget) AddError(err error) {
 // ServiceTrafficTargetSource represents a source of a ServiceTrafficTarget. In the SMI specification, a TrafficTarget
 // has a list of sources, each of them being a service-account name. ServiceTrafficTargetSource represents this
 // service-account, populated with the pods having this Service.
+// +k8s:deepcopy-gen=true
 type ServiceTrafficTargetSource struct {
 	ServiceAccount string `json:"serviceAccount"`
 	Namespace      string `json:"namespace"`
@@ -186,6 +194,7 @@ type ServiceTrafficTargetSource struct {
 // ServiceTrafficTargetDestination represents a destination of a ServiceTrafficTarget. In the SMI specification, a
 // TrafficTarget has a destination service-account. ServiceTrafficTargetDestination holds the pods exposed by the
 // Service which has this service-account.
+// +k8s:deepcopy-gen=true
 type ServiceTrafficTargetDestination struct {
 	ServiceAccount string               `json:"serviceAccount"`
 	Namespace      string               `json:"namespace"`
@@ -194,6 +203,7 @@ type ServiceTrafficTargetDestination struct {
 }
 
 // Pod is a node of the graph representing a kubernetes pod.
+// +k8s:deepcopy-gen=true
 type Pod struct {
 	Name            string                 `json:"name"`
 	Namespace       string                 `json:"namespace"`
@@ -207,6 +217,7 @@ type Pod struct {
 }
 
 // TrafficSplit represents a TrafficSplit applied on a Service.
+// +k8s:deepcopy-gen=true
 type TrafficSplit struct {
 	Name      string `json:"name"`
 	Namespace string `json:"namespace"`
@@ -222,6 +233,7 @@ type TrafficSplit struct {
 }
 
 // TrafficSpec represents a Spec which can be used for restricting access to a route in a TrafficTarget or a TrafficSplit.
+// +k8s:deepcopy-gen=true
 type TrafficSpec struct {
 	HTTPRouteGroup *specs.HTTPRouteGroup `json:"httpRouteGroup,omitempty"`
 	TCPRoute       *specs.TCPRoute       `json:"tcpRoute,omitempty"`
@@ -233,6 +245,7 @@ func (ts *TrafficSplit) AddError(err error) {
 }
 
 // TrafficSplitBackend is a backend of a TrafficSplit.
+// +k8s:deepcopy-gen=true
 type TrafficSplitBackend struct {
 	Weight  int `json:"weight"`
 	Service Key `json:"service"`
