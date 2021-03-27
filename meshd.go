@@ -2,6 +2,7 @@ package meshd
 
 import (
 	"context"
+	"reflect"
 	"time"
 
 	"github.com/gernest/meshd/pkg/topology"
@@ -15,6 +16,15 @@ type D struct {
 	handle   func(*topology.Topology)
 	topology *topology.Topology
 	log      logr.Logger
+}
+
+func New(c client.Client, log logr.Logger, handle func(*topology.Topology)) *D {
+	return &D{
+		client: c,
+		log:    log,
+		build:  topology.NewBuild(c, log),
+		handle: handle,
+	}
 }
 
 func (d *D) Start(ctx context.Context) {
@@ -34,7 +44,17 @@ func (d *D) process(ctx context.Context) {
 	if err != nil {
 		d.log.Error(err, "Failed to build topology")
 	} else {
-		// check if topology has changed, keep a copy for next iteration
-		d.handle(b)
+		if d.changed(b) {
+			d.topology = b.DeepCopy()
+			d.handle(b)
+		}
 	}
+}
+
+func (d *D) changed(n *topology.Topology) bool {
+	if d.topology == nil {
+		return true
+	}
+	// TODO find efficient comparison
+	return reflect.DeepEqual(d.topology, n)
 }

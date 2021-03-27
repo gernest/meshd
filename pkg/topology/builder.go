@@ -24,6 +24,10 @@ type builder struct {
 	logger logr.Logger
 }
 
+func NewBuild(c client.Client, log logr.Logger) Build {
+	return &builder{Client: c, logger: log}
+}
+
 // Build builds a graph representing the possible interactions between Pods and Services based on the current state
 // of the kubernetes cluster.
 func (b *builder) Build() (*Topology, error) {
