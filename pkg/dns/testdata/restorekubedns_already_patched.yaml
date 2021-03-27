@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kube-dns
+  namespace: kube-system
+spec:
+  template:
+    spec:
+      volumes:
+        - configMap:
+            name: "kube-dns"
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kube-dns
+  namespace: kube-system
+data:
+  stubDomains: |
+    {"dream.mesh":["10.10.10.10:53"], "test":["5.6.7.8"]}

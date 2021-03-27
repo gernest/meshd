@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: dream-mesh-dns
+  namespace: dream-mesh
+spec:
+  clusterIP: 10.10.10.10
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kube-dns
+  namespace: kube-system
+spec:
+  template:
+    spec:
+      volumes:
+        - configMap:
+            name: "kube-dns"
+            optional: true
