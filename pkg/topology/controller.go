@@ -8,6 +8,7 @@ import (
 	access "github.com/servicemeshinterface/smi-sdk-go/pkg/apis/access/v1alpha2"
 	specs "github.com/servicemeshinterface/smi-sdk-go/pkg/apis/specs/v1alpha3"
 	split "github.com/servicemeshinterface/smi-sdk-go/pkg/apis/split/v1alpha3"
+	"go.uber.org/ratelimit"
 	corev1 "k8s.io/api/core/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -18,6 +19,7 @@ type Controller struct {
 	client.Client
 	Handler func(*Topology)
 	Log     logr.Logger
+	rate    ratelimit.Limiter
 }
 
 // Reconcile we don't do custom handling of resource here. We use this as a

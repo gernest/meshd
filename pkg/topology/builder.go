@@ -14,6 +14,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+type Build interface {
+	Build() (*Topology, error)
+}
+
 // builder builds Topology objects based on the current state of a kubernetes cluster.
 type builder struct {
 	client.Client
