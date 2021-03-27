@@ -21,7 +21,7 @@ const (
 )
 
 const (
-	baseAnnotation                     = "mesh.dream.co.tz/"
+	baseAnnotation                     = "mesh.meshd.co.tz/"
 	annotationServiceType              = baseAnnotation + "traffic-type"
 	annotationScheme                   = baseAnnotation + "scheme"
 	annotationRetryAttempts            = baseAnnotation + "retry-attempts"

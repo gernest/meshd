@@ -13,9 +13,9 @@ const (
 	// LabelPartOf is used for specifying the name of a higher level app it is part of.
 	LabelPartOf = "app.kubernetes.io/part-of"
 	// LabelServiceName is the name of the label for storing the name of the source service for a shadow service.
-	LabelServiceName = "mesh.dream.co.tz/service-name"
+	LabelServiceName = "mesh.meshd.co.tz/service-name"
 	// LabelServiceNamespace is the name of the label for storing the namespace of the source service for a shadow service.
-	LabelServiceNamespace = "mesh.dream.co.tz/service-namespace"
+	LabelServiceNamespace = "mesh.meshd.co.tz/service-namespace"
 
 	// AppName is the name of the app.
 	AppName = "dream"

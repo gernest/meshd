@@ -7,9 +7,9 @@
         "app": "app-b"
       },
       "annotations": {
-        "mesh.dream.co.tz/ratelimit-average": "100",
-        "mesh.dream.co.tz/ratelimit-burst": "200",
-        "mesh.dream.co.tz/traffic-type": "http"
+        "mesh.meshd.co.tz/ratelimit-average": "100",
+        "mesh.meshd.co.tz/ratelimit-burst": "200",
+        "mesh.meshd.co.tz/traffic-type": "http"
       },
       "ports": [
         {
