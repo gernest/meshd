@@ -26,23 +26,22 @@ type PortStateTable struct {
 
 // ShadowServiceManager manages shadow services.
 type ShadowServiceManager struct {
-	logger logr.Logger
-	table  *PortStateTable
+	table *PortStateTable
 }
 
 // getServicePorts returns the ports of the given user service, mapped with port opened on the proxy.
-func (s *ShadowServiceManager) getServicePorts(svc *corev1.Service, trafficType string) []corev1.ServicePort {
+func (s *ShadowServiceManager) getServicePorts(log logr.Logger, svc *corev1.Service, trafficType string) []corev1.ServicePort {
 	var ports []corev1.ServicePort
 
 	for _, sp := range svc.Spec.Ports {
 		if !isPortCompatible(trafficType, sp) {
-			s.logger.Info("Unsupported port type %q on %q service %q in namespace %q, skipping port %d", sp.Protocol, trafficType, svc.Name, svc.Namespace, sp.Port)
+			log.Info("Unsupported port type %q on %q service %q in namespace %q, skipping port %d", sp.Protocol, trafficType, svc.Name, svc.Namespace, sp.Port)
 			continue
 		}
 
-		targetPort, err := s.mapPort(svc.Name, svc.Namespace, trafficType, sp.Port)
+		targetPort, err := s.mapPort(log, svc.Name, svc.Namespace, trafficType, sp.Port)
 		if err != nil {
-			s.logger.Error(err, "Unable to map port", "Port", sp.Port)
+			log.Error(err, "Unable to map port", "Port", sp.Port)
 			continue
 		}
 
@@ -58,15 +57,15 @@ func (s *ShadowServiceManager) getServicePorts(svc *corev1.Service, trafficType 
 }
 
 // cleanupShadowServicePorts unmap ports that have changed since the last update of the service.
-func (s *ShadowServiceManager) cleanupShadowServicePorts(svc, shadowSvc *corev1.Service, trafficType string) {
+func (s *ShadowServiceManager) cleanupShadowServicePorts(log logr.Logger, svc, shadowSvc *corev1.Service, trafficType string) {
 	oldTrafficType, err := annotations.GetTrafficType(shadowSvc.Annotations)
 	if errors.Is(err, annotations.ErrNotFound) {
-		s.logger.Error(err, "Unable find traffic-type")
+		log.Error(err, "Unable find traffic-type")
 		return
 	}
 
 	if err != nil {
-		s.logger.Error(err, "Unable to clean up ports ")
+		log.Error(err, "Unable to clean up ports ")
 		return
 	}
 
@@ -82,14 +81,14 @@ func (s *ShadowServiceManager) cleanupShadowServicePorts(svc, shadowSvc *corev1.
 	}
 
 	for _, sp := range oldPorts {
-		if err := s.unmapPort(svc.Namespace, svc.Name, oldTrafficType, sp.Port); err != nil {
-			s.logger.Error(err, "Unable to unmap port", "Port", sp.Port)
+		if err := s.unmapPort(log, svc.Namespace, svc.Name, oldTrafficType, sp.Port); err != nil {
+			log.Error(err, "Unable to unmap port", "Port", sp.Port)
 		}
 	}
 }
 
 // mapPort maps the given port to a port on the proxy, if not already done.
-func (s *ShadowServiceManager) setPort(name, namespace, trafficType string, port, mappedPort int32) error {
+func (s *ShadowServiceManager) setPort(log logr.Logger, name, namespace, trafficType string, port, mappedPort int32) error {
 	var stateTable PortMapper
 
 	switch trafficType {
@@ -104,12 +103,12 @@ func (s *ShadowServiceManager) setPort(name, namespace, trafficType string, port
 	if err := stateTable.Set(namespace, name, port, mappedPort); err != nil {
 		return err
 	}
-	s.logger.Info("Loaded port", "Port", port, "MappedPort", mappedPort)
+	log.Info("Loaded port", "Port", port, "MappedPort", mappedPort)
 	return nil
 }
 
 // mapPort maps the given port to a port on the proxy, if not already done.
-func (s *ShadowServiceManager) mapPort(name, namespace, trafficType string, port int32) (int32, error) {
+func (s *ShadowServiceManager) mapPort(log logr.Logger, name, namespace, trafficType string, port int32) (int32, error) {
 	var stateTable PortMapper
 
 	switch trafficType {
@@ -125,13 +124,13 @@ func (s *ShadowServiceManager) mapPort(name, namespace, trafficType string, port
 	if err != nil {
 		return 0, err
 	}
-	s.logger.Info("Mapped port", "Port", port, "MappedPort", mappedPort)
+	log.Info("Mapped port", "Port", port, "MappedPort", mappedPort)
 	return mappedPort, nil
 }
 
 // unmapPort releases the port on the proxy associated with the given port. This released port can then be
 // remapped later on. Port releasing is delegated to the different port mappers, following the given traffic type.
-func (s *ShadowServiceManager) unmapPort(namespace, name, trafficType string, port int32) error {
+func (s *ShadowServiceManager) unmapPort(log logr.Logger, namespace, name, trafficType string, port int32) error {
 	var stateTable PortMapper
 
 	switch trafficType {
@@ -144,7 +143,7 @@ func (s *ShadowServiceManager) unmapPort(namespace, name, trafficType string, po
 	}
 
 	if mappedPort, ok := stateTable.Remove(namespace, name, port); ok {
-		s.logger.Info("Unmapped port", "Port", port, "MappedPort", mappedPort)
+		log.Info("Unmapped port", "Port", port, "MappedPort", mappedPort)
 	}
 
 	return nil
@@ -197,18 +196,18 @@ func buildUnresolvablePort() corev1.ServicePort {
 }
 
 // loadShadowServicePorts loads the port mapping of the given shadow service into the different port mappers.
-func (s *ShadowServiceManager) loadShadowServicePorts(shadowSvc *corev1.Service, trafficType string) {
+func (s *ShadowServiceManager) loadShadowServicePorts(log logr.Logger, shadowSvc *corev1.Service, trafficType string) {
 	namespace := shadowSvc.Labels[k8s.LabelServiceNamespace]
 	name := shadowSvc.Labels[k8s.LabelServiceName]
 
 	for _, sp := range shadowSvc.Spec.Ports {
 		if !isPortCompatible(trafficType, sp) {
-			s.logger.Info("Unsupported port type %q on %q service %q in namespace %q, skipping port %d", sp.Protocol, trafficType, shadowSvc.Name, shadowSvc.Namespace, sp.Port)
+			log.Info("Unsupported port type %q on %q service %q in namespace %q, skipping port %d", sp.Protocol, trafficType, shadowSvc.Name, shadowSvc.Namespace, sp.Port)
 			continue
 		}
 
-		if err := s.setPort(name, namespace, trafficType, sp.Port, sp.TargetPort.IntVal); err != nil {
-			s.logger.Error(err, fmt.Sprintf("Unable to load port %d for %q service %q in namespace %q: %v", sp.Port, trafficType, shadowSvc.Name, shadowSvc.Namespace, err))
+		if err := s.setPort(log, name, namespace, trafficType, sp.Port, sp.TargetPort.IntVal); err != nil {
+			log.Error(err, fmt.Sprintf("Unable to load port %d for %q service %q in namespace %q: %v", sp.Port, trafficType, shadowSvc.Name, shadowSvc.Namespace, err))
 			continue
 		}
 	}

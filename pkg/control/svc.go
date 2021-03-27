@@ -3,7 +3,6 @@ package control
 import (
 	"context"
 	goerrors "errors"
-	"fmt"
 
 	"github.com/gernest/meshd/pkg/annotations"
 	"github.com/gernest/meshd/pkg/k8s"
@@ -75,7 +74,7 @@ func (r *Shadow) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, 
 	_, err = controllerutil.CreateOrUpdate(ctx, r.Client, svc, func() error {
 		if svc.DeletionTimestamp.IsZero() {
 			if shadow {
-				return r.deleteShadow(svc, trafficType)
+				return r.deleteShadow(log, svc, trafficType)
 			}
 			return r.delete(ctx, svc)
 		}
@@ -84,9 +83,9 @@ func (r *Shadow) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, 
 			return nil
 		}
 		if r.isCreated(svc) {
-			return r.create(ctx, svc, trafficType)
+			return r.create(ctx, log, svc, trafficType)
 		}
-		return r.update(ctx, svc, trafficType)
+		return r.update(ctx, log, svc, trafficType)
 	})
 	return ctrl.Result{}, err
 }
@@ -104,12 +103,12 @@ func (r *Shadow) isShadow(svc *corev1.Service) bool {
 	return svc.Labels[k8s.LabelComponent] == k8s.ComponentShadowService
 }
 
-func (r *Shadow) create(ctx context.Context, svc *corev1.Service, trafficType string) error {
+func (r *Shadow) create(ctx context.Context, log logr.Logger, svc *corev1.Service, trafficType string) error {
 	name, _ := shadow.Name(svc.Namespace, svc.Name)
 	shadowSvc := &corev1.Service{}
 	shadowSvc.Name = name
 	shadowSvc.Namespace = svc.Namespace
-	ports := r.s.getServicePorts(svc, trafficType)
+	ports := r.s.getServicePorts(log, svc, trafficType)
 	if len(ports) == 0 {
 		ports = []corev1.ServicePort{buildUnresolvablePort()}
 	}
@@ -130,7 +129,7 @@ func (r *Shadow) create(ctx context.Context, svc *corev1.Service, trafficType st
 	return nil
 }
 
-func (r *Shadow) update(ctx context.Context, svc *corev1.Service, trafficType string) error {
+func (r *Shadow) update(ctx context.Context, log logr.Logger, svc *corev1.Service, trafficType string) error {
 	name, _ := shadow.Name(svc.Namespace, svc.Name)
 	shadowSvc := &corev1.Service{}
 	shadowSvc.Name = name
@@ -138,8 +137,8 @@ func (r *Shadow) update(ctx context.Context, svc *corev1.Service, trafficType st
 	if err := r.Get(ctx, types.NamespacedName{}, shadowSvc); err != nil {
 		return err
 	}
-	r.s.cleanupShadowServicePorts(svc, shadowSvc, trafficType)
-	ports := r.s.getServicePorts(svc, trafficType)
+	r.s.cleanupShadowServicePorts(log, svc, shadowSvc, trafficType)
+	ports := r.s.getServicePorts(log, svc, trafficType)
 	if len(ports) == 0 {
 		ports = []corev1.ServicePort{buildUnresolvablePort()}
 	}
@@ -168,10 +167,10 @@ func (r *Shadow) delete(ctx context.Context, svc *corev1.Service) error {
 	return nil
 }
 
-func (r *Shadow) deleteShadow(svc *corev1.Service, trafficType string) error {
+func (r *Shadow) deleteShadow(log logr.Logger, svc *corev1.Service, trafficType string) error {
 	r.Log.Info("Deleting shadow service", "ServiceName", svc.Name)
 	for _, sp := range svc.Spec.Ports {
-		if err := r.s.unmapPort(svc.Namespace, svc.Name, trafficType, sp.Port); err != nil {
+		if err := r.s.unmapPort(log, svc.Namespace, svc.Name, trafficType, sp.Port); err != nil {
 			r.Log.Error(err, "UUnable to unmap port",
 				"ServiceName", svc.Name, "ServicePort", sp.Port, "Namespace", svc.Namespace)
 			return err
@@ -200,15 +199,15 @@ func (r *Shadow) Init(ctx context.Context) error {
 		// If the traffic-type annotation has been manually removed we can't load its ports.
 		trafficType, err := annotations.GetTrafficType(shadowSvc.Annotations)
 		if goerrors.Is(err, annotations.ErrNotFound) {
-			r.s.logger.Error(err, fmt.Sprintf("Unable to find traffic-type on shadow service %q", shadowSvc.Name))
+			r.Log.Error(err, "Unable to find traffic-type on shadow service")
 			continue
 		}
 
 		if err != nil {
-			r.s.logger.Error(err, fmt.Sprintf("Unable to load port mapping of shadow service %q: %v", shadowSvc.Name, err))
+			r.Log.Error(err, "Unable to load port mapping of shadow service")
 			continue
 		}
-		r.s.loadShadowServicePorts(&shadowSvc, trafficType)
+		r.s.loadShadowServicePorts(r.Log, &shadowSvc, trafficType)
 	}
 	return nil
 }
