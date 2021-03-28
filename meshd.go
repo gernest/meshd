@@ -8,7 +8,6 @@ import (
 	"github.com/gernest/meshd/pkg/topology"
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/runtime"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -67,11 +66,26 @@ func (d *D) changed(n *topology.Topology) bool {
 	return reflect.DeepEqual(d.topology, n)
 }
 
-// AddToScheme adds all resources to scheme
-func AddToScheme(scheme *runtime.Scheme) {
-	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-	utilruntime.Must(access.AddToScheme(scheme))
-	utilruntime.Must(specs.AddToScheme(scheme))
-	utilruntime.Must(split.AddToScheme(scheme))
-	utilruntime.Must(metrics.AddToScheme(scheme))
+// AddToScheme adds all resources that this library manages to scheme
+// - k8s.io/client-go/kubernetes/scheme
+// - github.com/servicemeshinterface/smi-sdk-go/pkg/apis/access/v1alpha3
+// - github.com/servicemeshinterface/smi-sdk-go/pkg/apis/specs/v1alpha4
+// - github.com/servicemeshinterface/smi-sdk-go/pkg/apis/split/v1alpha4
+// - github.com/servicemeshinterface/smi-sdk-go/pkg/apis/metrics/v1alpha2
+func AddToScheme(scheme *runtime.Scheme) error {
+	e := func(s *runtime.Scheme, fn ...func(*runtime.Scheme) error) error {
+		for _, f := range fn {
+			if err := f(s); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	return e(scheme,
+		clientgoscheme.AddToScheme,
+		access.AddToScheme,
+		specs.AddToScheme,
+		split.AddToScheme,
+		metrics.AddToScheme,
+	)
 }
