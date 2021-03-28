@@ -7,7 +7,15 @@ import (
 
 	"github.com/gernest/meshd/pkg/topology"
 	"github.com/go-logr/logr"
+	"k8s.io/apimachinery/pkg/runtime"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	access "github.com/servicemeshinterface/smi-sdk-go/pkg/apis/access/v1alpha3"
+	metrics "github.com/servicemeshinterface/smi-sdk-go/pkg/apis/metrics/v1alpha2"
+	specs "github.com/servicemeshinterface/smi-sdk-go/pkg/apis/specs/v1alpha4"
+	split "github.com/servicemeshinterface/smi-sdk-go/pkg/apis/split/v1alpha4"
 )
 
 type D struct {
@@ -57,4 +65,13 @@ func (d *D) changed(n *topology.Topology) bool {
 	}
 	// TODO find efficient comparison
 	return reflect.DeepEqual(d.topology, n)
+}
+
+// AddToScheme adds all resources to scheme
+func AddToScheme(scheme *runtime.Scheme) {
+	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
+	utilruntime.Must(access.AddToScheme(scheme))
+	utilruntime.Must(specs.AddToScheme(scheme))
+	utilruntime.Must(split.AddToScheme(scheme))
+	utilruntime.Must(metrics.AddToScheme(scheme))
 }
