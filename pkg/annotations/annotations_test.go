@@ -19,7 +19,7 @@ func TestGetTrafficType(t *testing.T) {
 		{
 			desc: "unknown service type",
 			annotations: map[string]string{
-				"mesh.meshd.co.tz/traffic-type": "hello",
+				"mesh.meshd.local/traffic-type": "hello",
 			},
 			err: true,
 		},
@@ -31,14 +31,14 @@ func TestGetTrafficType(t *testing.T) {
 		{
 			desc: "tcp",
 			annotations: map[string]string{
-				"mesh.meshd.co.tz/traffic-type": "tcp",
+				"mesh.meshd.local/traffic-type": "tcp",
 			},
 			want: ServiceTypeTCP,
 		},
 		{
 			desc: "udp",
 			annotations: map[string]string{
-				"mesh.meshd.co.tz/traffic-type": "udp",
+				"mesh.meshd.local/traffic-type": "udp",
 			},
 			want: ServiceTypeUDP,
 		},
@@ -72,7 +72,7 @@ func TestGetScheme(t *testing.T) {
 		{
 			desc: "unknown scheme",
 			annotations: map[string]string{
-				"mesh.meshd.co.tz/scheme": "hello",
+				"mesh.meshd.local/scheme": "hello",
 			},
 			err: true,
 		},
@@ -84,21 +84,21 @@ func TestGetScheme(t *testing.T) {
 		{
 			desc: "http",
 			annotations: map[string]string{
-				"mesh.meshd.co.tz/scheme": "http",
+				"mesh.meshd.local/scheme": "http",
 			},
 			want: SchemeHTTP,
 		},
 		{
 			desc: "https",
 			annotations: map[string]string{
-				"mesh.meshd.co.tz/scheme": "https",
+				"mesh.meshd.local/scheme": "https",
 			},
 			want: SchemeHTTPS,
 		},
 		{
 			desc: "h2c",
 			annotations: map[string]string{
-				"mesh.meshd.co.tz/scheme": "h2c",
+				"mesh.meshd.local/scheme": "h2c",
 			},
 			want: SchemeH2C,
 		},
@@ -129,14 +129,14 @@ func TestGetRetryAttempts(t *testing.T) {
 		{
 			desc: "invalid",
 			annotations: map[string]string{
-				"mesh.meshd.co.tz/retry-attempts": "hello",
+				"mesh.meshd.local/retry-attempts": "hello",
 			},
 			err: true,
 		},
 		{
 			desc: "valid",
 			annotations: map[string]string{
-				"mesh.meshd.co.tz/retry-attempts": "2",
+				"mesh.meshd.local/retry-attempts": "2",
 			},
 			want: 2,
 		},
@@ -174,7 +174,7 @@ func TestGetCircuitBreakerExpression(t *testing.T) {
 		{
 			desc: "valid",
 			annotations: map[string]string{
-				"mesh.meshd.co.tz/circuit-breaker-expression": "LatencyAtQuantileMS(50.0) > 100",
+				"mesh.meshd.local/circuit-breaker-expression": "LatencyAtQuantileMS(50.0) > 100",
 			},
 			want: "LatencyAtQuantileMS(50.0) > 100",
 		},
@@ -212,14 +212,14 @@ func TestGetRateLimitBurst(t *testing.T) {
 		{
 			desc: "invalid",
 			annotations: map[string]string{
-				"mesh.meshd.co.tz/ratelimit-burst": "hello",
+				"mesh.meshd.local/ratelimit-burst": "hello",
 			},
 			err: true,
 		},
 		{
 			desc: "valid",
 			annotations: map[string]string{
-				"mesh.meshd.co.tz/ratelimit-burst": "200",
+				"mesh.meshd.local/ratelimit-burst": "200",
 			},
 			want: 200,
 		},
@@ -257,14 +257,14 @@ func TestGetRateLimitAverage(t *testing.T) {
 		{
 			desc: "invalid",
 			annotations: map[string]string{
-				"mesh.meshd.co.tz/ratelimit-average": "hello",
+				"mesh.meshd.local/ratelimit-average": "hello",
 			},
 			err: true,
 		},
 		{
 			desc: "valid",
 			annotations: map[string]string{
-				"mesh.meshd.co.tz/ratelimit-average": "100",
+				"mesh.meshd.local/ratelimit-average": "100",
 			},
 			want: 100,
 		},

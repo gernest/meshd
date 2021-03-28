@@ -7,9 +7,9 @@
         "app": "app-b"
       },
       "annotations": {
-        "mesh.meshd.co.tz/ratelimit-average": "100",
-        "mesh.meshd.co.tz/ratelimit-burst": "200",
-        "mesh.meshd.co.tz/traffic-type": "http"
+        "mesh.meshd.local/ratelimit-average": "100",
+        "mesh.meshd.local/ratelimit-burst": "200",
+        "mesh.meshd.local/traffic-type": "http"
       },
       "ports": [
         {

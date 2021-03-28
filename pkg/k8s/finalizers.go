@@ -2,6 +2,6 @@ package k8s
 
 // finalizer
 const (
-	baseFinal    = "finalizers.meshd.co.tz"
+	baseFinal    = "finalizers.meshd.local"
 	FinalService = baseFinal + "/service"
 )

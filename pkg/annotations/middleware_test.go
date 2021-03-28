@@ -22,7 +22,7 @@ package annotations
 // 		{
 // 			desc: "retry-attempts annotation is valid",
 // 			annotations: map[string]string{
-// 				"mesh.meshd.co.tz/retry-attempts": "5",
+// 				"mesh.meshd.local/retry-attempts": "5",
 // 			},
 // 			want: map[string]*dynamic.Middleware{
 // 				"retry": {
@@ -35,14 +35,14 @@ package annotations
 // 		{
 // 			desc: "retry-attempts annotation is invalid",
 // 			annotations: map[string]string{
-// 				"mesh.meshd.co.tz/retry-attempts": "hello",
+// 				"mesh.meshd.local/retry-attempts": "hello",
 // 			},
 // 			err: true,
 // 		},
 // 		{
 // 			desc: "circuit-breaker-expression",
 // 			annotations: map[string]string{
-// 				"mesh.meshd.co.tz/circuit-breaker-expression": "LatencyAtQuantileMS(50.0) > 100",
+// 				"mesh.meshd.local/circuit-breaker-expression": "LatencyAtQuantileMS(50.0) > 100",
 // 			},
 // 			want: map[string]*dynamic.Middleware{
 // 				"circuit-breaker": {
@@ -55,8 +55,8 @@ package annotations
 // 		{
 // 			desc: "ratelimit-average and ratelimit-burst are both valid",
 // 			annotations: map[string]string{
-// 				"mesh.meshd.co.tz/ratelimit-average": "200",
-// 				"mesh.meshd.co.tz/ratelimit-burst":   "100",
+// 				"mesh.meshd.local/ratelimit-average": "200",
+// 				"mesh.meshd.local/ratelimit-burst":   "100",
 // 			},
 // 			want: map[string]*dynamic.Middleware{
 // 				"rate-limit": {
@@ -70,40 +70,40 @@ package annotations
 // 		{
 // 			desc: "ratelimit-average is valid but ratelimit-burst is invalid",
 // 			annotations: map[string]string{
-// 				"mesh.meshd.co.tz/ratelimit-average": "200",
-// 				"mesh.meshd.co.tz/ratelimit-burst":   "hello",
+// 				"mesh.meshd.local/ratelimit-average": "200",
+// 				"mesh.meshd.local/ratelimit-burst":   "hello",
 // 			},
 // 			err: true,
 // 		},
 // 		{
 // 			desc: "ratelimit-burst is valid but ratelimit-average is invalid",
 // 			annotations: map[string]string{
-// 				"mesh.meshd.co.tz/ratelimit-burst":   "200",
-// 				"mesh.meshd.co.tz/ratelimit-average": "hello",
+// 				"mesh.meshd.local/ratelimit-burst":   "200",
+// 				"mesh.meshd.local/ratelimit-average": "hello",
 // 			},
 // 			err: true,
 // 		},
 // 		{
 // 			desc: "ratelimit-average is set but ratelimit-burst is not",
 // 			annotations: map[string]string{
-// 				"mesh.meshd.co.tz/ratelimit-average": "200",
+// 				"mesh.meshd.local/ratelimit-average": "200",
 // 			},
 // 			want: map[string]*dynamic.Middleware{},
 // 		},
 // 		{
 // 			desc: "ratelimit-burst is set but ratelimit-average is not",
 // 			annotations: map[string]string{
-// 				"mesh.meshd.co.tz/ratelimit-burst": "200",
+// 				"mesh.meshd.local/ratelimit-burst": "200",
 // 			},
 // 			want: map[string]*dynamic.Middleware{},
 // 		},
 // 		{
 // 			desc: "multiple middlewares",
 // 			annotations: map[string]string{
-// 				"mesh.meshd.co.tz/retry-attempts":             "5",
-// 				"mesh.meshd.co.tz/ratelimit-average":          "200",
-// 				"mesh.meshd.co.tz/ratelimit-burst":            "100",
-// 				"mesh.meshd.co.tz/circuit-breaker-expression": "LatencyAtQuantileMS(50.0) > 100",
+// 				"mesh.meshd.local/retry-attempts":             "5",
+// 				"mesh.meshd.local/ratelimit-average":          "200",
+// 				"mesh.meshd.local/ratelimit-burst":            "100",
+// 				"mesh.meshd.local/circuit-breaker-expression": "LatencyAtQuantileMS(50.0) > 100",
 // 			},
 // 			want: map[string]*dynamic.Middleware{
 // 				"retry": {

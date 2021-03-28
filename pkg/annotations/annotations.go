@@ -21,7 +21,7 @@ const (
 )
 
 const (
-	baseAnnotation                     = "mesh.meshd.co.tz/"
+	baseAnnotation                     = "mesh.meshd.local/"
 	annotationServiceType              = baseAnnotation + "traffic-type"
 	annotationScheme                   = baseAnnotation + "scheme"
 	annotationRetryAttempts            = baseAnnotation + "retry-attempts"

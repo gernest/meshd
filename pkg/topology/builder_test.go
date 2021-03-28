@@ -39,9 +39,9 @@ package topology
 // 	selectorAppA := map[string]string{"app": "app-a"}
 // 	selectorAppB := map[string]string{"app": "app-b"}
 // 	annotations := map[string]string{
-// 		"mesh.meshd.co.tz/traffic-type":      "http",
-// 		"mesh.meshd.co.tz/ratelimit-average": "100",
-// 		"mesh.meshd.co.tz/ratelimit-burst":   "200",
+// 		"mesh.meshd.local/traffic-type":      "http",
+// 		"mesh.meshd.local/ratelimit-average": "100",
+// 		"mesh.meshd.local/ratelimit-burst":   "200",
 // 	}
 // 	svcbPorts := []corev1.ServicePort{svcPort("port-8080", 8080, 8080)}
 // 	svccPorts := []corev1.ServicePort{svcPort("port-9091", 9091, 9091)}
@@ -159,9 +159,9 @@ package topology
 // 	selectorAppC := map[string]string{"app": "app-c"}
 // 	selectorAppD := map[string]string{"app": "app-d"}
 // 	annotations := map[string]string{
-// 		"mesh.meshd.co.tz/traffic-type":      "http",
-// 		"mesh.meshd.co.tz/ratelimit-average": "100",
-// 		"mesh.meshd.co.tz/ratelimit-burst":   "200",
+// 		"mesh.meshd.local/traffic-type":      "http",
+// 		"mesh.meshd.local/ratelimit-average": "100",
+// 		"mesh.meshd.local/ratelimit-burst":   "200",
 // 	}
 // 	svcPorts := []corev1.ServicePort{svcPort("port-8080", 8080, 8080)}
 
@@ -427,9 +427,9 @@ package topology
 // 	selectorAppA := map[string]string{"app": "app-a"}
 // 	selectorAppB := map[string]string{"app": "app-b"}
 // 	annotations := map[string]string{
-// 		"mesh.meshd.co.tz/traffic-type":      "http",
-// 		"mesh.meshd.co.tz/ratelimit-average": "100",
-// 		"mesh.meshd.co.tz/ratelimit-burst":   "200",
+// 		"mesh.meshd.local/traffic-type":      "http",
+// 		"mesh.meshd.local/ratelimit-average": "100",
+// 		"mesh.meshd.local/ratelimit-burst":   "200",
 // 	}
 // 	svcbPorts := []corev1.ServicePort{
 // 		svcPort("port-8080", 8080, 8080),
