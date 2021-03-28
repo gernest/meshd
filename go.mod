@@ -11,6 +11,7 @@ require (
 	github.com/miekg/dns v1.1.41
 	github.com/servicemeshinterface/smi-sdk-go v0.5.0
 	github.com/stretchr/testify v1.7.0
+	go.uber.org/atomic v1.7.0 // indirect
 	go.uber.org/ratelimit v0.2.0
 	go.uber.org/zap v1.16.0
 	k8s.io/api v0.20.5
