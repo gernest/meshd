@@ -50,8 +50,7 @@ func (d *D) Start(ctx context.Context) error {
 	if err := d.SetupWithManager(d.Manager); err != nil {
 		return err
 	}
-	// TODO:
-	// try to build initial topology
+	d.process(ctx)
 	go d.start(ctx)
 	return d.Manager.Start(ctx)
 }
@@ -78,7 +77,9 @@ func (d *D) process(ctx context.Context) {
 	} else {
 		if d.changed(b) {
 			d.topology = b.DeepCopy()
-			d.handle(b)
+			if err := d.handle(b); err != nil {
+				d.log.Error(err, "Failed to handle topology change")
+			}
 		}
 	}
 }
