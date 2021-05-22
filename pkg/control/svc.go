@@ -3,11 +3,13 @@ package control
 import (
 	"context"
 	goerrors "errors"
+	"reflect"
 
 	"github.com/gernest/meshd/pkg/annotations"
 	"github.com/gernest/meshd/pkg/k8s"
 	"github.com/gernest/meshd/pkg/portmapping"
 	"github.com/gernest/meshd/pkg/shadow"
+	"github.com/gernest/meshd/pkg/topology"
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -41,11 +43,16 @@ func (c *Config) Table() *PortStateTable {
 	return c.table
 }
 
+type Handler func(*topology.Topology) error
+
 // Shadow implements reconciler loop that manages services/shadow services
 type Shadow struct {
 	client.Client
-	Log     logr.Logger
-	manager *ShadowServiceManager
+	Log      logr.Logger
+	manager  *ShadowServiceManager
+	build    topology.Build
+	handle   Handler
+	topology *topology.Topology
 }
 
 func New(cfg *Config, c client.Client, lg logr.Logger) *Shadow {
@@ -55,11 +62,43 @@ func New(cfg *Config, c client.Client, lg logr.Logger) *Shadow {
 		manager: &ShadowServiceManager{
 			table: cfg.Table(),
 		},
+		build: topology.NewBuild(c, lg),
 	}
 }
 
-// Reconcile reconciles services with respective shadow services
 func (r *Shadow) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	if o, err := r.Sync(ctx, req); err != nil {
+		return o, err
+	}
+
+	// build topology
+	b, err := r.build.Build()
+	if err != nil {
+		r.Log.Error(err, "Failed to build topology")
+		return ctrl.Result{}, err
+	} else {
+		if r.changed(b) {
+			r.topology = b.DeepCopy()
+			if err := r.handle(b); err != nil {
+				r.Log.Error(err, "Failed to handle topology change")
+				return ctrl.Result{}, err
+			}
+		}
+	}
+	return ctrl.Result{}, nil
+}
+
+func (r *Shadow) changed(n *topology.Topology) bool {
+	if r.topology == nil {
+		return true
+	}
+	// TODO find efficient comparison
+	return reflect.DeepEqual(r.topology, n)
+}
+
+// Sync synchronizes the given service and its shadow service. If the shadow service doesn't exist it will be
+// created. If it exists it will be updated and if the service doesn't exist, the shadow service will be removed.
+func (r *Shadow) Sync(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	svc := &corev1.Service{}
 	if err := r.Get(ctx, req.NamespacedName, svc); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
