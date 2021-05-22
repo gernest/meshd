@@ -44,15 +44,15 @@ func (c *Config) Table() *PortStateTable {
 // Shadow implements reconciler loop that manages services/shadow services
 type Shadow struct {
 	client.Client
-	Log logr.Logger
-	s   *ShadowServiceManager
+	Log     logr.Logger
+	manager *ShadowServiceManager
 }
 
 func New(cfg *Config, c client.Client, lg logr.Logger) *Shadow {
 	return &Shadow{
 		Client: c,
 		Log:    lg,
-		s: &ShadowServiceManager{
+		manager: &ShadowServiceManager{
 			table: cfg.Table(),
 		},
 	}
@@ -108,7 +108,7 @@ func (r *Shadow) create(ctx context.Context, log logr.Logger, svc *corev1.Servic
 	shadowSvc := &corev1.Service{}
 	shadowSvc.Name = name
 	shadowSvc.Namespace = svc.Namespace
-	ports := r.s.getServicePorts(log, svc, trafficType)
+	ports := r.manager.getServicePorts(log, svc, trafficType)
 	if len(ports) == 0 {
 		ports = []corev1.ServicePort{buildUnresolvablePort()}
 	}
@@ -137,8 +137,8 @@ func (r *Shadow) update(ctx context.Context, log logr.Logger, svc *corev1.Servic
 	if err := r.Get(ctx, types.NamespacedName{}, shadowSvc); err != nil {
 		return err
 	}
-	r.s.cleanupShadowServicePorts(log, svc, shadowSvc, trafficType)
-	ports := r.s.getServicePorts(log, svc, trafficType)
+	r.manager.cleanupShadowServicePorts(log, svc, shadowSvc, trafficType)
+	ports := r.manager.getServicePorts(log, svc, trafficType)
 	if len(ports) == 0 {
 		ports = []corev1.ServicePort{buildUnresolvablePort()}
 	}
@@ -170,7 +170,7 @@ func (r *Shadow) delete(ctx context.Context, svc *corev1.Service) error {
 func (r *Shadow) deleteShadow(log logr.Logger, svc *corev1.Service, trafficType string) error {
 	r.Log.Info("Deleting shadow service", "ServiceName", svc.Name)
 	for _, sp := range svc.Spec.Ports {
-		if err := r.s.unmapPort(log, svc.Namespace, svc.Name, trafficType, sp.Port); err != nil {
+		if err := r.manager.unmapPort(log, svc.Namespace, svc.Name, trafficType, sp.Port); err != nil {
 			r.Log.Error(err, "UUnable to unmap port",
 				"ServiceName", svc.Name, "ServicePort", sp.Port, "Namespace", svc.Namespace)
 			return err
@@ -207,7 +207,7 @@ func (r *Shadow) Init(ctx context.Context) error {
 			r.Log.Error(err, "Unable to load port mapping of shadow service")
 			continue
 		}
-		r.s.loadShadowServicePorts(r.Log, &shadowSvc, trafficType)
+		r.manager.loadShadowServicePorts(r.Log, &shadowSvc, trafficType)
 	}
 	return nil
 }
