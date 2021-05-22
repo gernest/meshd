@@ -29,14 +29,14 @@ type Config struct {
 	MaxTCPPort       int32
 	MinUDPPort       int32
 	MaxUDPPort       int32
-	table            *PortStateTable
+	table            *shadow.PortStateTable
 }
 
-func (c *Config) Table() *PortStateTable {
+func (c *Config) Table() *shadow.PortStateTable {
 	if c.table != nil {
 		return c.table
 	}
-	c.table = &PortStateTable{
+	c.table = &shadow.PortStateTable{
 		TCP: portmapping.NewPortMapping(c.MinTCPPort, c.MaxTCPPort),
 		UDP: portmapping.NewPortMapping(c.MinUDPPort, c.MaxUDPPort),
 	}
@@ -49,7 +49,7 @@ type Handler func(*topology.Topology) error
 type Shadow struct {
 	client.Client
 	Log      logr.Logger
-	manager  *ShadowServiceManager
+	manager  *shadow.Manager
 	build    topology.Build
 	handle   Handler
 	topology *topology.Topology
@@ -59,8 +59,8 @@ func New(cfg *Config, c client.Client, lg logr.Logger) *Shadow {
 	return &Shadow{
 		Client: c,
 		Log:    lg,
-		manager: &ShadowServiceManager{
-			table: cfg.Table(),
+		manager: &shadow.Manager{
+			Table: cfg.Table(),
 		},
 		build: topology.NewBuild(c, lg),
 	}
@@ -147,9 +147,9 @@ func (r *Shadow) create(ctx context.Context, log logr.Logger, svc *corev1.Servic
 	shadowSvc := &corev1.Service{}
 	shadowSvc.Name = name
 	shadowSvc.Namespace = svc.Namespace
-	ports := r.manager.getServicePorts(log, svc, trafficType)
+	ports := r.manager.GetServicePorts(log, svc, trafficType)
 	if len(ports) == 0 {
-		ports = []corev1.ServicePort{buildUnresolvablePort()}
+		ports = []corev1.ServicePort{shadow.BuildUnresolvablePort()}
 	}
 	shadowSvcLabels := k8s.ShadowServiceLabels()
 	shadowSvcLabels[k8s.LabelServiceNamespace] = svc.Namespace
@@ -176,10 +176,10 @@ func (r *Shadow) update(ctx context.Context, log logr.Logger, svc *corev1.Servic
 	if err := r.Get(ctx, types.NamespacedName{}, shadowSvc); err != nil {
 		return err
 	}
-	r.manager.cleanupShadowServicePorts(log, svc, shadowSvc, trafficType)
-	ports := r.manager.getServicePorts(log, svc, trafficType)
+	r.manager.CleanupShadowServicePorts(log, svc, shadowSvc, trafficType)
+	ports := r.manager.GetServicePorts(log, svc, trafficType)
 	if len(ports) == 0 {
-		ports = []corev1.ServicePort{buildUnresolvablePort()}
+		ports = []corev1.ServicePort{shadow.BuildUnresolvablePort()}
 	}
 	shadowSvc = shadowSvc.DeepCopy()
 	shadowSvc.Spec.Ports = ports
@@ -209,7 +209,7 @@ func (r *Shadow) delete(ctx context.Context, svc *corev1.Service) error {
 func (r *Shadow) deleteShadow(log logr.Logger, svc *corev1.Service, trafficType string) error {
 	r.Log.Info("Deleting shadow service", "ServiceName", svc.Name)
 	for _, sp := range svc.Spec.Ports {
-		if err := r.manager.unmapPort(log, svc.Namespace, svc.Name, trafficType, sp.Port); err != nil {
+		if err := r.manager.UnmapPort(log, svc.Namespace, svc.Name, trafficType, sp.Port); err != nil {
 			r.Log.Error(err, "UUnable to unmap port",
 				"ServiceName", svc.Name, "ServicePort", sp.Port, "Namespace", svc.Namespace)
 			return err
@@ -246,7 +246,7 @@ func (r *Shadow) Init(ctx context.Context) error {
 			r.Log.Error(err, "Unable to load port mapping of shadow service")
 			continue
 		}
-		r.manager.loadShadowServicePorts(r.Log, &shadowSvc, trafficType)
+		r.manager.LoadShadowServicePorts(r.Log, &shadowSvc, trafficType)
 	}
 	return nil
 }

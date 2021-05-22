@@ -1,4 +1,4 @@
-package control
+package shadow
 
 import (
 	"errors"
@@ -24,13 +24,13 @@ type PortStateTable struct {
 	UDP PortMapper
 }
 
-// ShadowServiceManager manages shadow services.
-type ShadowServiceManager struct {
-	table *PortStateTable
+// Manager manages shadow services.
+type Manager struct {
+	Table *PortStateTable
 }
 
-// getServicePorts returns the ports of the given user service, mapped with port opened on the proxy.
-func (s *ShadowServiceManager) getServicePorts(log logr.Logger, svc *corev1.Service, trafficType string) []corev1.ServicePort {
+// GetServicePorts returns the ports of the given user service, mapped with port opened on the proxy.
+func (s *Manager) GetServicePorts(log logr.Logger, svc *corev1.Service, trafficType string) []corev1.ServicePort {
 	var ports []corev1.ServicePort
 
 	for _, sp := range svc.Spec.Ports {
@@ -56,8 +56,8 @@ func (s *ShadowServiceManager) getServicePorts(log logr.Logger, svc *corev1.Serv
 	return ports
 }
 
-// cleanupShadowServicePorts unmap ports that have changed since the last update of the service.
-func (s *ShadowServiceManager) cleanupShadowServicePorts(log logr.Logger, svc, shadowSvc *corev1.Service, trafficType string) {
+// CleanupShadowServicePorts unmap ports that have changed since the last update of the service.
+func (s *Manager) CleanupShadowServicePorts(log logr.Logger, svc, shadowSvc *corev1.Service, trafficType string) {
 	oldTrafficType, err := annotations.GetTrafficType(shadowSvc.Annotations)
 	if errors.Is(err, annotations.ErrNotFound) {
 		log.Error(err, "Unable find traffic-type")
@@ -81,21 +81,21 @@ func (s *ShadowServiceManager) cleanupShadowServicePorts(log logr.Logger, svc, s
 	}
 
 	for _, sp := range oldPorts {
-		if err := s.unmapPort(log, svc.Namespace, svc.Name, oldTrafficType, sp.Port); err != nil {
+		if err := s.UnmapPort(log, svc.Namespace, svc.Name, oldTrafficType, sp.Port); err != nil {
 			log.Error(err, "Unable to unmap port", "Port", sp.Port)
 		}
 	}
 }
 
 // mapPort maps the given port to a port on the proxy, if not already done.
-func (s *ShadowServiceManager) setPort(log logr.Logger, name, namespace, trafficType string, port, mappedPort int32) error {
+func (s *Manager) setPort(log logr.Logger, name, namespace, trafficType string, port, mappedPort int32) error {
 	var stateTable PortMapper
 
 	switch trafficType {
 	case annotations.ServiceTypeTCP:
-		stateTable = s.table.TCP
+		stateTable = s.Table.TCP
 	case annotations.ServiceTypeUDP:
-		stateTable = s.table.UDP
+		stateTable = s.Table.UDP
 	default:
 		return fmt.Errorf("unknown traffic type %q", trafficType)
 	}
@@ -108,14 +108,14 @@ func (s *ShadowServiceManager) setPort(log logr.Logger, name, namespace, traffic
 }
 
 // mapPort maps the given port to a port on the proxy, if not already done.
-func (s *ShadowServiceManager) mapPort(log logr.Logger, name, namespace, trafficType string, port int32) (int32, error) {
+func (s *Manager) mapPort(log logr.Logger, name, namespace, trafficType string, port int32) (int32, error) {
 	var stateTable PortMapper
 
 	switch trafficType {
 	case annotations.ServiceTypeTCP:
-		stateTable = s.table.TCP
+		stateTable = s.Table.TCP
 	case annotations.ServiceTypeUDP:
-		stateTable = s.table.UDP
+		stateTable = s.Table.UDP
 	default:
 		return 0, fmt.Errorf("unknown traffic type %q", trafficType)
 	}
@@ -128,16 +128,16 @@ func (s *ShadowServiceManager) mapPort(log logr.Logger, name, namespace, traffic
 	return mappedPort, nil
 }
 
-// unmapPort releases the port on the proxy associated with the given port. This released port can then be
+// UnmapPort releases the port on the proxy associated with the given port. This released port can then be
 // remapped later on. Port releasing is delegated to the different port mappers, following the given traffic type.
-func (s *ShadowServiceManager) unmapPort(log logr.Logger, namespace, name, trafficType string, port int32) error {
+func (s *Manager) UnmapPort(log logr.Logger, namespace, name, trafficType string, port int32) error {
 	var stateTable PortMapper
 
 	switch trafficType {
 	case annotations.ServiceTypeTCP:
-		stateTable = s.table.TCP
+		stateTable = s.Table.TCP
 	case annotations.ServiceTypeUDP:
-		stateTable = s.table.UDP
+		stateTable = s.Table.UDP
 	default:
 		return fmt.Errorf("unknown traffic type %q", trafficType)
 	}
@@ -185,9 +185,9 @@ func isPortCompatible(trafficType string, sp corev1.ServicePort) bool {
 	}
 }
 
-// buildUnresolvablePort builds a service port with a fake port. This fake port can be used as a placeholder when a service
+// BuildUnresolvablePort builds a service port with a fake port. This fake port can be used as a placeholder when a service
 // doesn't have any compatible ports.
-func buildUnresolvablePort() corev1.ServicePort {
+func BuildUnresolvablePort() corev1.ServicePort {
 	return corev1.ServicePort{
 		Name:     "unresolvable-port",
 		Protocol: corev1.ProtocolTCP,
@@ -195,8 +195,8 @@ func buildUnresolvablePort() corev1.ServicePort {
 	}
 }
 
-// loadShadowServicePorts loads the port mapping of the given shadow service into the different port mappers.
-func (s *ShadowServiceManager) loadShadowServicePorts(log logr.Logger, shadowSvc *corev1.Service, trafficType string) {
+// LoadShadowServicePorts loads the port mapping of the given shadow service into the different port mappers.
+func (s *Manager) LoadShadowServicePorts(log logr.Logger, shadowSvc *corev1.Service, trafficType string) {
 	namespace := shadowSvc.Labels[k8s.LabelServiceNamespace]
 	name := shadowSvc.Labels[k8s.LabelServiceName]
 
