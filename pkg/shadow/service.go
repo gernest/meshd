@@ -195,6 +195,25 @@ func BuildUnresolvablePort() corev1.ServicePort {
 	}
 }
 
+// LoadPortMapping loads the port mapping of existing shadow services into the different port mappers.
+func (s *Manager) LoadPortMapping(log logr.Logger, shadowSvcs []*corev1.Service) error {
+	for _, shadowSvc := range shadowSvcs {
+		// If the traffic-type annotation has been manually removed we can't load its ports.
+		trafficType, err := annotations.GetTrafficType(shadowSvc.Annotations)
+		if errors.Is(err, annotations.ErrNotFound) {
+			log.Info("Unable to find traffic-type on shadow service", "Service", shadowSvc.Name)
+			continue
+		}
+
+		if err != nil {
+			log.Error(err, "Unable to load port mapping of shadow service", "Service", shadowSvc.Name)
+			continue
+		}
+		s.LoadShadowServicePorts(log, shadowSvc, trafficType)
+	}
+	return nil
+}
+
 // LoadShadowServicePorts loads the port mapping of the given shadow service into the different port mappers.
 func (s *Manager) LoadShadowServicePorts(log logr.Logger, shadowSvc *corev1.Service, trafficType string) {
 	namespace := shadowSvc.Labels[k8s.LabelServiceNamespace]
