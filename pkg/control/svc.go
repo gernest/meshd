@@ -32,6 +32,16 @@ type Config struct {
 	table            *shadow.PortStateTable
 }
 
+func (cfg Config) Filter() *k8s.ResourceFilter {
+	return k8s.NewResourceFilter(
+		k8s.WatchNamespaces(cfg.WatchNamespaces...),
+		k8s.IgnoreNamespaces(cfg.IgnoreNamespaces...),
+		k8s.IgnoreNamespaces(metav1.NamespaceSystem),
+		k8s.IgnoreService(metav1.NamespaceDefault, "kubernetes"),
+		k8s.IgnoreLabel(k8s.LabelPartOf, k8s.AppName),
+	)
+}
+
 func (c *Config) Table() *shadow.PortStateTable {
 	if c.table != nil {
 		return c.table
@@ -53,6 +63,7 @@ type Shadow struct {
 	build    topology.Build
 	handle   Handler
 	topology *topology.Topology
+	config   *Config
 }
 
 func New(cfg *Config, c client.Client, lg logr.Logger) *Shadow {
@@ -62,7 +73,8 @@ func New(cfg *Config, c client.Client, lg logr.Logger) *Shadow {
 		manager: &shadow.Manager{
 			Table: cfg.Table(),
 		},
-		build: topology.NewBuild(c, lg),
+		build:  topology.NewBuild(c, lg),
+		config: cfg,
 	}
 }
 
@@ -72,7 +84,7 @@ func (r *Shadow) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, 
 	}
 
 	// build topology
-	b, err := r.build.Build()
+	b, err := r.build.Build(ctx, r.config.Filter())
 	if err != nil {
 		r.Log.Error(err, "Failed to build topology")
 		return ctrl.Result{}, err
@@ -254,6 +266,6 @@ func (r *Shadow) Init(ctx context.Context) error {
 func (r *Shadow) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&corev1.Service{}).
-		WithEventFilter(k8s.Filter()).
+		WithEventFilter(k8s.Filter(r.config.Filter())).
 		Complete(r)
 }

@@ -3,7 +3,10 @@ package k8s
 import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/selection"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 )
@@ -109,6 +112,52 @@ func (f *ResourceFilter) IsIgnored(obj interface{}) bool {
 	return false
 }
 
+func (f *ResourceFilter) List() *client.ListOptions {
+	return &client.ListOptions{
+		LabelSelector: f.Labels(),
+		FieldSelector: f.Fields(),
+	}
+}
+
+func (f *ResourceFilter) Labels() labels.Selector {
+	if len(f.ignoredLabels) == 0 {
+		return labels.Everything()
+	}
+	ls := labels.NewSelector()
+	for k, v := range f.ignoredLabels {
+		v, _ := labels.NewRequirement(k, selection.NotIn, []string{v})
+		ls = ls.Add(*v)
+	}
+	return ls
+}
+
+func (f *ResourceFilter) labelRequirements() (o []*labels.Requirement) {
+	for k, v := range f.ignoredLabels {
+		v, _ := labels.NewRequirement(k, selection.NotIn, []string{v})
+		o = append(o, v)
+	}
+	return
+}
+
+func (f *ResourceFilter) Fields() fields.Selector {
+	var sl []fields.Selector
+	for _, ns := range f.watchedNamespaces {
+		sl = append(sl, fields.OneTermEqualSelector("metadata.namespace", ns))
+	}
+	for _, ns := range f.ignoredNamespaces {
+		sl = append(sl, fields.OneTermNotEqualSelector("metadata.namespace", ns))
+	}
+	for _, ns := range f.ignoredServices {
+		sl = append(sl, fields.OneTermNotEqualSelector("metadata.namespace", ns.Namespace))
+		sl = append(sl, fields.OneTermNotEqualSelector("metadata.name", ns.Name))
+		sl = append(sl, fields.OneTermNotEqualSelector("metadata.kind", "Service"))
+	}
+	if len(sl) == 0 {
+		return fields.Everything()
+	}
+	return fields.AndSelectors(sl...)
+}
+
 func contains(slice []string, str string) bool {
 	for _, item := range slice {
 		if item == str {
@@ -130,12 +179,7 @@ func containsNamespaceName(slice []namespaceName, nn namespaceName) bool {
 }
 
 // Filter used to return watched resources
-func Filter() predicate.Predicate {
-	fs := NewResourceFilter(
-		IgnoreNamespaces(metav1.NamespaceSystem),
-		IgnoreService(metav1.NamespaceDefault, "kubernetes"),
-		IgnoreLabel(LabelPartOf, AppName),
-	)
+func Filter(fs *ResourceFilter) predicate.Predicate {
 	return predicate.Funcs{
 		CreateFunc: func(ce event.CreateEvent) bool {
 			return !fs.IsIgnored(ce.Object)

@@ -4,18 +4,18 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/gernest/meshd/pkg/k8s"
 	mk8s "github.com/gernest/meshd/pkg/k8s"
 	"github.com/go-logr/logr"
 	access "github.com/servicemeshinterface/smi-sdk-go/pkg/apis/access/v1alpha2"
 	specs "github.com/servicemeshinterface/smi-sdk-go/pkg/apis/specs/v1alpha3"
 	split "github.com/servicemeshinterface/smi-sdk-go/pkg/apis/split/v1alpha3"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type Build interface {
-	Build() (*Topology, error)
+	Build(ctx context.Context, filter *k8s.ResourceFilter) (*Topology, error)
 }
 
 // builder builds Topology objects based on the current state of a kubernetes cluster.
@@ -30,10 +30,10 @@ func NewBuild(c client.Client, log logr.Logger) Build {
 
 // Build builds a graph representing the possible interactions between Pods and Services based on the current state
 // of the kubernetes cluster.
-func (b *builder) Build() (*Topology, error) {
+func (b *builder) Build(ctx context.Context, filter *k8s.ResourceFilter) (*Topology, error) {
 	topology := NewTopology()
 
-	res, err := b.loadResources()
+	res, err := b.loadResources(ctx, filter)
 	if err != nil {
 		return nil, fmt.Errorf("unable to load resources: %w", err)
 	}
@@ -582,13 +582,7 @@ func getOrCreatePod(topology *Topology, pod *corev1.Pod) Key {
 	return podKey
 }
 
-func (b *builder) list(ls client.ObjectList) error {
-	return b.List(context.TODO(), ls, &client.ListOptions{
-		LabelSelector: labels.Everything(),
-	})
-}
-
-func (b *builder) loadResources() (*resources, error) {
+func (b *builder) loadResources(ctx context.Context, filter *k8s.ResourceFilter) (*resources, error) {
 	res := &resources{
 		Services:              make(map[Key]*corev1.Service),
 		TrafficTargets:        make(map[Key]*access.TrafficTarget),
@@ -600,36 +594,40 @@ func (b *builder) loadResources() (*resources, error) {
 		PodsBySvcBySa:         make(map[Key]map[Key][]*corev1.Pod),
 	}
 
-	err := b.loadServices(res)
+	svcs := &corev1.ServiceList{}
+	err := b.List(ctx, svcs, filter.List())
 	if err != nil {
-		return nil, fmt.Errorf("unable to load Services: %w", err)
+		return nil, fmt.Errorf("unable to list Services: %w", err)
+	}
+	for _, svc := range svcs.Items {
+		res.Services[Key{svc.Name, svc.Namespace}] = &svc
 	}
 	pods := &corev1.PodList{}
-	if err := b.list(pods); err != nil {
+	if err := b.List(ctx, pods, filter.List()); err != nil {
 		return nil, fmt.Errorf("unable to list Pods: %w", err)
 	}
 
 	eps := &corev1.EndpointsList{}
-	if err := b.List(context.TODO(), eps, &client.ListOptions{LabelSelector: labels.Everything()}); err != nil {
+	if err := b.List(ctx, eps, filter.List()); err != nil {
 		return nil, fmt.Errorf("unable to list Endpoints: %w", err)
 	}
 	tss := &split.TrafficSplitList{}
-	if err := b.list(tss); err != nil {
+	if err := b.List(ctx, tss, filter.List()); err != nil {
 		return nil, fmt.Errorf("unable to list TrafficSplits: %w", err)
 	}
 
 	httpRtGrps := &specs.HTTPRouteGroupList{}
-	if err := b.list(httpRtGrps); err != nil {
+	if err := b.List(ctx, httpRtGrps, filter.List()); err != nil {
 		return nil, fmt.Errorf("unable to list HTTPRouteGroups: %w", err)
 	}
 
 	tcpRts := &specs.TCPRouteList{}
-	if err := b.list(tcpRts); err != nil {
+	if err := b.List(ctx, tcpRts, filter.List()); err != nil {
 		return nil, fmt.Errorf("unable to list TCPRouteGroups: %w", err)
 	}
 
 	tts := &access.TrafficTargetList{}
-	if err := b.list(tts); err != nil {
+	if err := b.List(ctx, tts, filter.List()); err != nil {
 		return nil, fmt.Errorf("unable to list TrafficTargets: %w", err)
 	}
 
@@ -637,20 +635,6 @@ func (b *builder) loadResources() (*resources, error) {
 	res.indexPods(pods, eps)
 
 	return res, nil
-}
-
-func (b *builder) loadServices(res *resources) error {
-	svcs := &corev1.ServiceList{}
-	err := b.List(context.TODO(), svcs, &client.ListOptions{
-		LabelSelector: labels.Everything(),
-	})
-	if err != nil {
-		return fmt.Errorf("unable to list Services: %w", err)
-	}
-	for _, svc := range svcs.Items {
-		res.Services[Key{svc.Name, svc.Namespace}] = &svc
-	}
-	return nil
 }
 
 type resources struct {
