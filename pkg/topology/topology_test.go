@@ -3,6 +3,7 @@ package topology
 import (
 	"testing"
 
+	meshv1 "github.com/gernest/meshd/api/v1"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -72,7 +73,7 @@ func TestTopology_ResolveServicePort(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
-			port, result := ResolveServicePort(test.svcPort, test.containerPorts)
+			port, result := meshv1.ResolveServicePort(test.svcPort, test.containerPorts)
 
 			assert.Equal(t, test.expResult, result)
 			assert.Equal(t, test.expPort, port)

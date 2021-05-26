@@ -53,7 +53,7 @@ func (c *Config) Table() *shadow.PortStateTable {
 	return c.table
 }
 
-type Handler func(*topology.Topology) error
+type Handler func(*topology.TopologySpec) error
 
 // Shadow implements reconciler loop that manages services/shadow services
 type Shadow struct {
@@ -62,7 +62,7 @@ type Shadow struct {
 	manager  *shadow.Manager
 	build    topology.Build
 	handle   Handler
-	topology *topology.Topology
+	topology *topology.TopologySpec
 	config   *Config
 }
 
@@ -89,9 +89,10 @@ func (r *Shadow) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, 
 		r.Log.Error(err, "Failed to build topology")
 		return ctrl.Result{}, err
 	} else {
-		if r.changed(b) {
-			r.topology = b.DeepCopy()
-			if err := r.handle(b); err != nil {
+		spec := b.Spec()
+		if r.changed(spec) {
+			r.topology = spec.DeepCopy()
+			if err := r.handle(spec); err != nil {
 				r.Log.Error(err, "Failed to handle topology change")
 				return ctrl.Result{}, err
 			}
@@ -100,7 +101,7 @@ func (r *Shadow) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, 
 	return ctrl.Result{}, nil
 }
 
-func (r *Shadow) changed(n *topology.Topology) bool {
+func (r *Shadow) changed(n *topology.TopologySpec) bool {
 	if r.topology == nil {
 		return true
 	}

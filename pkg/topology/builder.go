@@ -60,7 +60,7 @@ func (b *builder) Build(ctx context.Context, filter *k8s.ResourceFilter) (*Topol
 
 // evaluateService evaluates the given service. It adds the Service to the topology and its selected Pods.
 func (b *builder) evaluateService(res *resources, topology *Topology, svc *corev1.Service) {
-	svcKey := Key{svc.Name, svc.Namespace}
+	svcKey := Key{Name: svc.Name, Namespace: svc.Namespace}
 
 	svcPods := res.PodsBySvc[svcKey]
 	pods := make([]Key, len(svcPods))
@@ -85,7 +85,7 @@ func (b *builder) evaluateService(res *resources, topology *Topology, svc *corev
 // When a ServiceTrafficTarget gets added to a Service, each source and destination pod will be added to the topology
 // and linked to it.
 func (b *builder) evaluateTrafficTarget(res *resources, topology *Topology, tt *access.TrafficTarget) {
-	destSaKey := Key{tt.Spec.Destination.Name, tt.Spec.Destination.Namespace}
+	destSaKey := Key{Name: tt.Spec.Destination.Name, Namespace: tt.Spec.Destination.Namespace}
 
 	sources := b.buildTrafficTargetSources(res, topology, tt)
 
@@ -99,7 +99,7 @@ func (b *builder) evaluateTrafficTarget(res *resources, topology *Topology, tt *
 
 		svcTTKey := ServiceTrafficTargetKey{
 			Service:       svcKey,
-			TrafficTarget: Key{tt.Name, tt.Namespace},
+			TrafficTarget: Key{Name: tt.Name, Namespace: tt.Namespace},
 		}
 		topology.ServiceTrafficTargets[svcTTKey] = stt
 
@@ -186,14 +186,14 @@ func addSourceAndDestinationToPods(topology *Topology, sources []ServiceTrafficT
 // evaluateTrafficSplit evaluates the given traffic-split. If the traffic-split targets a known Service, a new TrafficSplit
 // will be added to it. The TrafficSplit will be added only if all its backends expose the ports required by the Service.
 func (b *builder) evaluateTrafficSplit(res *resources, topology *Topology, trafficSplit *split.TrafficSplit) {
-	svcKey := Key{trafficSplit.Spec.Service, trafficSplit.Namespace}
+	svcKey := Key{Name: trafficSplit.Spec.Service, Namespace: trafficSplit.Namespace}
 	ts := &TrafficSplit{
 		Name:      trafficSplit.Name,
 		Namespace: trafficSplit.Namespace,
 		Service:   svcKey,
 	}
 
-	tsKey := Key{trafficSplit.Name, trafficSplit.Namespace}
+	tsKey := Key{Name: trafficSplit.Name, Namespace: trafficSplit.Namespace}
 	topology.TrafficSplits[tsKey] = ts
 
 	var err error
@@ -215,7 +215,7 @@ func (b *builder) evaluateTrafficSplit(res *resources, topology *Topology, traff
 	}
 
 	for _, backend := range trafficSplit.Spec.Backends {
-		backendSvcKey := Key{backend.Service, trafficSplit.Namespace}
+		backendSvcKey := Key{Name: backend.Service, Namespace: trafficSplit.Namespace}
 
 		backendSvc, ok := topology.Services[backendSvcKey]
 		if !ok {
@@ -300,7 +300,7 @@ func (b *builder) populateTrafficSplitsAuthorizedIncomingTraffic(topology *Topol
 }
 
 func (b *builder) getIncomingPodsForTrafficSplit(topology *Topology, ts *TrafficSplit, visited map[Key]struct{}) ([]Key, error) {
-	tsKey := Key{ts.Name, ts.Namespace}
+	tsKey := Key{Name: ts.Name, Namespace: ts.Namespace}
 	if _, ok := visited[tsKey]; ok {
 		return nil, fmt.Errorf("circular reference detected on TrafficSplit %q in Service %q", tsKey, ts.Service)
 	}
@@ -386,13 +386,13 @@ func unionPod(pods1, pods2 []Key) []Key {
 	p := map[Key]struct{}{}
 
 	for _, pod := range pods1 {
-		key := Key{pod.Name, pod.Namespace}
+		key := Key{Name: pod.Name, Namespace: pod.Namespace}
 
 		p[key] = struct{}{}
 	}
 
 	for _, pod := range pods2 {
-		key := Key{pod.Name, pod.Namespace}
+		key := Key{Name: pod.Name, Namespace: pod.Namespace}
 
 		if _, ok := p[key]; ok {
 			union = append(union, pod)
@@ -408,7 +408,7 @@ func (b *builder) buildTrafficTargetSources(res *resources, t *Topology, tt *acc
 	sources := make([]ServiceTrafficTargetSource, len(tt.Spec.Sources))
 
 	for i, source := range tt.Spec.Sources {
-		srcSaKey := Key{source.Name, source.Namespace}
+		srcSaKey := Key{Name: source.Name, Namespace: source.Namespace}
 
 		pods := res.PodsByServiceAccounts[srcSaKey]
 
@@ -487,7 +487,7 @@ func (b *builder) buildTrafficSplitSpecs(res *resources, ts *split.TrafficSplit)
 }
 
 func (b *builder) buildHTTPRouteGroup(httpRtGrps map[Key]*specs.HTTPRouteGroup, ns, name string, matches []string) (TrafficSpec, error) {
-	key := Key{name, ns}
+	key := Key{Name: name, Namespace: ns}
 
 	httpRouteGroup, ok := httpRtGrps[key]
 	if !ok {
@@ -526,7 +526,7 @@ func (b *builder) buildHTTPRouteGroup(httpRtGrps map[Key]*specs.HTTPRouteGroup, 
 }
 
 func (b *builder) buildTCPRoute(tcpRts map[Key]*specs.TCPRoute, ns, name string) (TrafficSpec, error) {
-	key := Key{name, ns}
+	key := Key{Name: name, Namespace: ns}
 
 	tcpRoute, ok := tcpRts[key]
 	if !ok {
@@ -548,7 +548,7 @@ func (b *builder) getTrafficTargetDestinationPorts(svc *Service, tt *access.Traf
 		return svc.Ports, nil
 	}
 
-	key := Key{tt.Name, tt.Namespace}
+	key := Key{Name: tt.Name, Namespace: tt.Namespace}
 
 	for _, svcPort := range svc.Ports {
 		if svcPort.TargetPort.IntVal == int32(*port) {
@@ -560,7 +560,7 @@ func (b *builder) getTrafficTargetDestinationPorts(svc *Service, tt *access.Traf
 }
 
 func getOrCreatePod(topology *Topology, pod *corev1.Pod) Key {
-	podKey := Key{pod.Name, pod.Namespace}
+	podKey := Key{Name: pod.Name, Namespace: pod.Namespace}
 
 	if _, ok := topology.Pods[podKey]; !ok {
 		var containerPorts []corev1.ContainerPort
@@ -600,7 +600,7 @@ func (b *builder) loadResources(ctx context.Context, filter *k8s.ResourceFilter)
 		return nil, fmt.Errorf("unable to list Services: %w", err)
 	}
 	for _, svc := range svcs.Items {
-		res.Services[Key{svc.Name, svc.Namespace}] = &svc
+		res.Services[Key{Name: svc.Name, Namespace: svc.Namespace}] = &svc
 	}
 	pods := &corev1.PodList{}
 	if err := b.List(ctx, pods, filter.List()); err != nil {
@@ -666,7 +666,7 @@ func (r *resources) indexPodsByServiceAccount(pods *corev1.PodList, podsByName m
 		keyPod := Key{Name: pod.Name, Namespace: pod.Namespace}
 		podsByName[keyPod] = &pod
 
-		saKey := Key{pod.Spec.ServiceAccountName, pod.Namespace}
+		saKey := Key{Name: pod.Spec.ServiceAccountName, Namespace: pod.Namespace}
 		r.PodsByServiceAccounts[saKey] = append(r.PodsByServiceAccounts[saKey], &pod)
 	}
 }
@@ -716,12 +716,12 @@ func (r *resources) indexPodByService(ep *corev1.Endpoints, address corev1.Endpo
 
 func (r *resources) indexSMIResources(tts *access.TrafficTargetList, tss *split.TrafficSplitList, tcpRts *specs.TCPRouteList, httpRtGrps *specs.HTTPRouteGroupList) {
 	for _, httpRouteGroup := range httpRtGrps.Items {
-		key := Key{httpRouteGroup.Name, httpRouteGroup.Namespace}
+		key := Key{Name: httpRouteGroup.Name, Namespace: httpRouteGroup.Namespace}
 		r.HTTPRouteGroups[key] = &httpRouteGroup
 	}
 
 	for _, tcpRoute := range tcpRts.Items {
-		key := Key{tcpRoute.Name, tcpRoute.Namespace}
+		key := Key{Name: tcpRoute.Name, Namespace: tcpRoute.Namespace}
 		r.TCPRoutes[key] = &tcpRoute
 	}
 
@@ -731,12 +731,12 @@ func (r *resources) indexSMIResources(tts *access.TrafficTargetList, tss *split.
 			trafficTarget.Spec.Destination.Namespace = trafficTarget.Namespace
 		}
 
-		key := Key{trafficTarget.Name, trafficTarget.Namespace}
+		key := Key{Name: trafficTarget.Name, Namespace: trafficTarget.Namespace}
 		r.TrafficTargets[key] = &trafficTarget
 	}
 
 	for _, trafficSplit := range tss.Items {
-		key := Key{trafficSplit.Name, trafficSplit.Namespace}
+		key := Key{Name: trafficSplit.Name, Namespace: trafficSplit.Namespace}
 		r.TrafficSplits[key] = &trafficSplit
 	}
 }
