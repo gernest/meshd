@@ -1,0 +1,24 @@
+# permissions for end users to edit topologies.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: topology-editor-role
+rules:
+- apiGroups:
+  - mesh.meshd.co.tz
+  resources:
+  - topologies
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - mesh.meshd.co.tz
+  resources:
+  - topologies/status
+  verbs:
+  - get

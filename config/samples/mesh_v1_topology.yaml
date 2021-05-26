@@ -1,0 +1,7 @@
+apiVersion: mesh.meshd.co.tz/v1
+kind: Topology
+metadata:
+  name: topology-sample
+spec:
+  # Add fields here
+  foo: bar
