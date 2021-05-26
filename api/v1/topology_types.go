@@ -20,10 +20,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-type TopologySpec struct {
-	Foo string `json:"foo,omitempty"`
-}
-
 // TopologyStatus defines the observed state of Topology
 type TopologyStatus struct{}
 
