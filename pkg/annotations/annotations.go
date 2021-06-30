@@ -7,6 +7,8 @@ import (
 )
 
 const (
+	// ServiceTypeHTTP HTTP service type.
+	ServiceTypeHTTP string = "http"
 	// ServiceTypeTCP TCP service type.
 	ServiceTypeTCP string = "tcp"
 	// ServiceTypeUDP UDP service type.
@@ -41,6 +43,7 @@ func GetTrafficType(annotations map[string]string) (string, error) {
 	}
 
 	switch trafficType {
+	case ServiceTypeHTTP:
 	case ServiceTypeTCP:
 	case ServiceTypeUDP:
 	default:

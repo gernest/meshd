@@ -4,7 +4,7 @@ go 1.15
 
 require (
 	github.com/cenkalti/backoff/v4 v4.1.0
-	github.com/gernest/tt v0.0.0-20210630164151-7296cbf3d6e8
+	github.com/gernest/tt v0.0.0-20210630193013-95e7e7da8498
 	github.com/go-logr/logr v0.3.0
 	github.com/go-logr/zapr v0.2.0
 	github.com/google/uuid v1.1.2

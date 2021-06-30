@@ -6,6 +6,7 @@ import (
 
 	"github.com/gernest/meshd/pkg/topology"
 	"github.com/gernest/tt/api"
+	"github.com/gernest/tt/rules"
 	specs "github.com/servicemeshinterface/smi-sdk-go/pkg/apis/specs/v1alpha3"
 )
 
@@ -280,4 +281,8 @@ func buildTCPRouterRule(sni ...string) *api.Rule {
 			},
 		},
 	}}
+}
+
+func getRulePriority(rule *api.Rule, priority int) int {
+	return rules.Priority(rule, priority)
 }

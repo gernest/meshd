@@ -1,6 +1,10 @@
 package topology
 
-import v1 "github.com/gernest/meshd/api/v1"
+import (
+	v1 "github.com/gernest/meshd/api/v1"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
+)
 
 type Key = v1.Key
 type Service = v1.Service
@@ -45,4 +49,24 @@ func NewTopology() *Topology {
 		ServiceTrafficTargets: make(map[ServiceTrafficTargetKey]*ServiceTrafficTarget),
 		TrafficSplits:         make(map[Key]*TrafficSplit),
 	}
+}
+
+// ResolveServicePort resolves the given service port against the given container port list, as described in the
+// Kubernetes documentation, and returns true if it has been successfully resolved, false otherwise.
+//
+// The Kubernetes documentation says: Port definitions in Pods have names, and you can reference these names in the
+// targetPort attribute of a Service. This works even if there is a mixture of Pods in the Service using a single
+// configured name, with the same network protocol available via different port numbers.
+func ResolveServicePort(svcPort corev1.ServicePort, containerPorts []corev1.ContainerPort) (int32, bool) {
+	if svcPort.TargetPort.Type == intstr.Int {
+		return svcPort.TargetPort.IntVal, true
+	}
+
+	for _, containerPort := range containerPorts {
+		if svcPort.TargetPort.StrVal == containerPort.Name && svcPort.Protocol == containerPort.Protocol {
+			return containerPort.ContainerPort, true
+		}
+	}
+
+	return 0, false
 }
